@@ -6,6 +6,7 @@ struct Parser {
     statement: Statement,
     current: Option<CondOrEffect>,
     current_block: Option<Block>,
+    state: CallState,
 }
 
 #[derive(Debug)]
@@ -72,22 +73,22 @@ impl Parser {
                 if self.current_block.is_some() {
                     return Err("Starting started block".to_owned());
                 }
+                self.state = CallState::None;
                 self.current_block = Some(Block::Call {
                     function: Default::default(),
                     args: Default::default(),
                     inverted: false,
-                    state: CallState::None,
                 })
             }
             '!' => {
                 if self.current_block.is_some() {
                     return Err("Starting started block".to_owned());
                 }
+                self.state = CallState::None;
                 self.current_block = Some(Block::Call {
                     function: Default::default(),
                     args: Default::default(),
                     inverted: true,
-                    state: CallState::None,
                 })
             }
             '%' => {
@@ -112,7 +113,7 @@ impl Parser {
                         .out
                         .get_or_insert_default()
                         .push(c.to_owned()),
-                    Some(x) => x.push_ch(ch.to_owned())?,
+                    Some(x) => x.push_ch(ch.to_owned(), &mut self.state)?,
                 };
             }
         }
@@ -153,6 +154,12 @@ enum CallState {
     Closed,
 }
 
+impl Default for CallState {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum Block {
     InfoPortion {
@@ -163,7 +170,6 @@ enum Block {
         function: String,
         args: Vec<String>,
         inverted: bool,
-        state: CallState,
     },
     Chance {
         val: i32,
@@ -171,7 +177,7 @@ enum Block {
 }
 
 impl Block {
-    fn push_ch(&mut self, ch: char) -> Result<(), String> {
+    fn push_ch(&mut self, ch: char, state: &mut CallState) -> Result<(), String> {
         match self {
             Self::InfoPortion { key, .. } => key.push(ch),
             Self::Chance { val } => {
@@ -182,7 +188,6 @@ impl Block {
                 function,
                 args,
                 inverted: _,
-                state,
             } => {
                 match (state.clone(), ch) {
                     (CallState::None, '(') => {
@@ -326,7 +331,6 @@ mod tests {
                 function: "f".to_owned(),
                 args: Vec::new(),
                 inverted: false,
-                state: CallState::None
             })
         );
     }
@@ -345,13 +349,11 @@ mod tests {
                             function: "A".to_owned(),
                             args: vec!["a1".to_owned(),"a2".to_owned()],
                             inverted: false,
-                            state: CallState::Closed,
                         },
                         Block::Call {
                             function: "B".to_owned(),
                             args: vec![],
                             inverted: true,
-                            state: CallState::None,
                         },
                         Block::InfoPortion {
                             key: "C".to_owned(),
@@ -368,7 +370,6 @@ mod tests {
                             function: "E".to_owned(),
                             args: vec!["e1".to_owned()],
                             inverted: false,
-                            state: CallState::Closed,
                         },
                         Block::InfoPortion {
                             key: "F".to_owned(),
