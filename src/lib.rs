@@ -37,7 +37,7 @@ impl CondOrEffect {
 }
 
 impl<'a> Parser<'a> {
-    fn eat(&mut self, ch: &char, index: usize) -> Result<(), String> {
+    fn eat(&mut self, ch: &char, ix: usize) -> Result<(), String> {
         dbg!(ch);
         match ch {
             '{' => {
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
                     return Err("Starting started block".to_owned());
                 }
                 self.current_block = Some(Block::InfoPortion {
-                    key: Slice::started_at(index + 1),
+                    key: Slice::started_at(ix + 1),
                     inverted: false,
                 })
             }
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
                     return Err("Starting started block".to_owned());
                 }
                 self.current_block = Some(Block::InfoPortion {
-                    key: Slice::started_at(index + 1),
+                    key: Slice::started_at(ix + 1),
                     inverted: true,
                 })
             }
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
                     return Err("Starting started block".to_owned());
                 }
                 self.current_block = Some(Block::Chance {
-                    val: Slice::started_at(index + 1),
+                    val: Slice::started_at(ix + 1),
                 })
             }
             '=' => {
@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
                 }
                 self.state = CallState::None;
                 self.current_block = Some(Block::Call {
-                    function: Slice::started_at(index + 1),
+                    function: Slice::started_at(ix + 1),
                     args: Default::default(),
                     inverted: false,
                 })
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
                 }
                 self.state = CallState::None;
                 self.current_block = Some(Block::Call {
-                    function: Slice::started_at(index + 1),
+                    function: Slice::started_at(ix + 1),
                     args: Default::default(),
                     inverted: true,
                 })
@@ -125,9 +125,9 @@ impl<'a> Parser<'a> {
                     None => self
                         .statement
                         .out
-                        .get_or_insert_with(|| Slice::started_at(index))
+                        .get_or_insert_with(|| Slice::started_at(ix))
                         .push_ch(),
-                    Some(x) => x.push_ch(ch.to_owned(), &mut self.state, index)?,
+                    Some(x) => x.push_ch(ch.to_owned(), &mut self.state)?,
                 };
             }
         }
@@ -204,7 +204,7 @@ enum Block {
 }
 
 impl Block {
-    fn push_ch(&mut self, ch: char, state: &mut CallState, ix: usize) -> Result<(), String> {
+    fn push_ch(&mut self, ch: char, state: &mut CallState) -> Result<(), String> {
         match self {
             Self::InfoPortion { key, .. } => key.push_ch(),
             Self::Chance { val } => {
@@ -220,7 +220,7 @@ impl Block {
             } => {
                 match (mem::replace(state, CallState::None), ch) {
                     (CallState::None, '(') => {
-                        *state = CallState::Opened(Slice::started_at(ix));
+                        *state = CallState::Opened(Slice::started_at(function.0 + function.1 + 1));
                     }
                     (CallState::None, _) => {
                         function.push_ch();
@@ -229,7 +229,7 @@ impl Block {
                     (CallState::Opened(_), '(') => return Err("Call is already opened".to_owned()),
                     (CallState::Opened(x), ':') => {
                         args.push(x);
-                        *state = CallState::Opened(Slice::started_at(ix));
+                        *state = CallState::Opened(Slice::started_at(function.0 + function.1 + 1));
                     }
                     (CallState::Opened(x), ')') => {
                         args.push(x);
@@ -431,7 +431,7 @@ mod tests {
                         condition: Some(vec![
                             Block::Call {
                                 function: Slice(2, 1,),
-                                args: vec![Slice(3, 2,), Slice(6, 2,),],
+                                args: vec![Slice(4, 2,), Slice(7, 2,),],
                                 inverted: false,
                             },
                             Block::Call {
@@ -452,7 +452,7 @@ mod tests {
                         effects: Some(vec![
                             Block::Call {
                                 function: Slice(29, 1,),
-                                args: vec![Slice(30, 2,),],
+                                args: vec![Slice(31, 2,),],
                                 inverted: false,
                             },
                             Block::InfoPortion {
