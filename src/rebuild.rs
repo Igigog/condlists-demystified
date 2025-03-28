@@ -1,6 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, fmt::format, sync::atomic::AtomicI32};
-
-use crate::parser::{Ast, Block, Condition, Effect, Slice, Statement};
+use crate::parser::{Ast, Block, Condition, Effect, Slice};
 
 #[derive(Debug, PartialEq)]
 enum Tag {
