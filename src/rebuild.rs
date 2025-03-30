@@ -71,15 +71,17 @@ impl IntoLua for Ast<'_> {
                 out.push_str(&lua_val, indent);
             }
 
-            if let Some(x) = statement.val() {
-                let val = self.slice_as_str(x);
-                let lua_val = format!("return \"{}\"", val);
+            let val = if let Some(x) = statement.val() {
+                "\"".to_owned() + self.slice_as_str(x) + "\""
+            } else {
+                "nil".to_owned()
+            };
+            let lua_val = format!("return {}", val);
 
-                metadata
-                    .0
-                    .push((Slice::new(out.0.len(), lua_val.len()), Tag::Output));
-                out.push_str(&lua_val, indent + if has_conds { 4 } else { 0 });
-            }
+            metadata
+                .0
+                .push((Slice::new(out.0.len(), lua_val.len()), Tag::Output));
+            out.push_str(&lua_val, indent + if has_conds { 4 } else { 0 });
 
             if has_conds {
                 out.push_str("\nend\n", indent);
